@@ -1,0 +1,42 @@
+{
+    "request": {
+        "method": "POST",
+        "url": "http://httpbin.org/post",
+        "headers": [
+            {
+                "name": "X-Purpose",
+                "value": "testing"
+            }
+        ],
+        "postData": {
+            "mimeType": "multipart/form-data",
+            "params": [
+                {
+                    "name": "username",
+                    "value": "PERSON"
+                },
+                {
+                    "name": "password",
+                    "value": "S3CR3T"
+                },
+                {
+                    "name": "ticket",
+                    "value": "%PDF",
+                    "fileName": "mytickets.csv",
+                    "contentType": "text/csv",
+                    "headers": [
+                        {
+                            "name": "Content-MD5",
+                            "value": "something"
+                        },
+                        {
+                            "name": "X-Application",
+                            "value": "CURL"
+                        }
+                    ],
+                    "comment": ""
+                }
+            ]
+        }
+    }
+}

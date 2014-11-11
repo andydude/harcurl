@@ -1,0 +1,12 @@
+{
+    "request": {
+        "method": "GET",
+        "url": "http://httpbin.org/gzip",
+        "headers": [
+            {
+                "name": "Accept-Encoding",
+                "value": "gzip, deflate"
+            }
+        ]
+    }
+}
