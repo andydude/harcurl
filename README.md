@@ -37,7 +37,7 @@ Examples
 --------
 
 <pre>
-$ cat > req.json <<EOF
+$ cat &gt; req.json &lt;&lt;EOF
 {
     "request": {
         "method": "GET",
@@ -46,5 +46,5 @@ $ cat > req.json <<EOF
 }
 EOF
 
-$ harcurl < req.json > resp.json
+$ harcurl &lt; req.json &gt; resp.json
 </pre>
