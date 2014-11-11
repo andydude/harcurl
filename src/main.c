@@ -316,7 +316,7 @@ har_request_postdata_to_byte_array(json_t * req, GByteArray * bytes)
       g_byte_array_append(bytes, (const guint8 *)text, size);
     } else {
       fprintf(stderr, "request.postData.text (plain)\n");
-      size = json_string_length(text_part);
+      size = strlen(json_string_value(text_part));
       text = json_string_value(text_part);
       g_byte_array_append(bytes, (const guint8 *)text, size);
     }
@@ -334,7 +334,7 @@ har_response_headers_from_byte_array(json_t * resp, GByteArray * bytes)
   const char * s = (const char *)(bytes->data);
   json_object_set_new(resp, "headersSize", json_integer(s_len));
   if (global_verbose) {
-    json_object_set_new(resp, "headersText", json_stringn(s, s_len));
+    json_object_set_new(resp, "headersText", json_string(s));
   }
   
   json_t * header;
@@ -504,7 +504,7 @@ har_response_content_from_byte_array(json_t * resp, GByteArray * bytes)
   const char * encoding = NULL;
 
   if (g_utf8_validate(text, size, &end)) {
-    json_object_set_new(content, "text", json_stringn(text, size));
+    json_object_set_new(content, "text", json_string(text));
   } else {
     text = g_base64_encode((const guchar *)text, size);
     json_object_set_new(content, "text", json_string(text));
@@ -540,7 +540,7 @@ har_debug_callback(CURL * easy,
         json_object_set_new(entry, debug_key, json_array());
         part = json_object_get(entry, debug_key);
       }
-      json_array_append_new(part, json_stringn(g_strdup(data), size));
+      json_array_append_new(part, json_string(g_strdup(data)));
     }
     break;
     
@@ -562,7 +562,7 @@ har_debug_callback(CURL * easy,
       json_object_set_new(req, "headersText", json_string(g_strdup(s)));
 
       /* save requestLine */
-      const char * end = strnstr(data, "\r\n", size);
+      const char * end = g_strstr_len(data, size, "\r\n");
       strncpy(s, data, (end - data));
       s[(end - data)] = '\0';
       json_object_set_new(req, "requestLine", json_string(g_strdup(s)));
@@ -575,7 +575,7 @@ har_debug_callback(CURL * easy,
     resp = json_object_get(entry, "response");
     if (size >= 5 && data[4] == '/' && response_header_index == 0 && global_verbose) {
       char * s = g_malloc0(size);
-      const char * end = strnstr(data, "\r\n", size);
+      const char * end = g_strstr_len(data, size, "\r\n");
       strncpy(s, data, (end - data));
       s[(end - data)] = '\0';
       json_object_set_new(resp, "statusLine", json_string(g_strdup(s)));
@@ -821,7 +821,7 @@ har_entry_to_curl_easy_setopt(json_t * obj, CURL * easy,
   struct curl_slist * headers = har_request_to_curl_slist(req);
   if (headers) {
     curl_easy_setopt(easy, CURLOPT_HTTPHEADER, headers);
-    curl_easy_setopt(easy, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
+    //curl_easy_setopt(easy, CURLOPT_HEADEROPT, CURLHEADER_UNIFIED);
   }
   
   /* install read callback for request body */
