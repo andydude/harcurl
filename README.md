@@ -1,9 +1,11 @@
 harcurl
-========
+=======
 
 HTTP Archive (HAR) command-line tool
 
---------
+
+Introduction
+------------
 
 The `curl` tool has many options, but it can be difficult to use. HAR is a great format
 for debugging and logging, but it's very static, and just sits there. This is where
@@ -20,3 +22,29 @@ for debugging and logging, but it's very static, and just sits there. This is wh
 
 It is a very simply idea, but hopefully one that helps people to
 understand, inspect, and use: CURL, HAR, and HTTP.
+
+
+Dependancies
+------------
+
+* `libcurl` for obvious reasons (all HTTP logic is handled by it)
+* `glib-2.0` for byte-array utils
+* `jansson` for JSON parsing, reading and writing
+* `zlib` for GZIP compression utils
+
+
+Examples
+--------
+
+<pre>
+$ cat > req.json <<EOF
+{
+    "request": {
+        "method": "GET",
+        "url": "http://httpbin.org/get"
+    }
+}
+EOF
+
+$ harcurl < req.json > resp.json
+</pre>
