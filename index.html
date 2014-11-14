@@ -1,0 +1,178 @@
+<?xml version="1.0"?>
+<!DOCTYPE html>
+<html class="no-js" xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>HARcURL</title>
+        <meta name="description" content="" />
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <link rel="stylesheet" href="static/css/vendor/bootstrap.min.css"/>
+        <link rel="stylesheet" href="static/css/vendor/bootstrap-theme.min.css"/>
+        <link rel="stylesheet" href="static/css/main.css"/>
+    </head>
+    <body>
+        <!--[if lt IE 7]>
+            <p class="browsehappy">You are using an <strong>outdated</strong> browser. Please <a href="http://browsehappy.com/">upgrade your browser</a> to improve your experience.</p>
+        <![endif]-->
+
+        <!-- Add your site or application content here -->
+        <div class="navbar navbar-default" style="margin-bottom: 0;">
+            <div class="container">
+                <!-- Brand and toggle get grouped for better mobile display -->
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="#"><strong>harcurl</strong></a>
+                </div>
+
+                <!-- Collect the nav links, forms, and other content for toggling -->
+                <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+                    <ul class="nav navbar-nav">
+                        <li class="active"><a href="#welcome">Welcome <span class="sr-only">(current)</span></a></li>
+                        <li><a href="#getting-started">Getting Started</a></li>
+                        <li><a href="#usage">Usage</a></li>
+                    </ul>
+                    <ul class="nav navbar-nav navbar-right">
+                        <li><a href="https://github.com/andydude/harcurl">GitHub</a></li>
+                    </ul>
+                </div><!-- /.navbar-collapse -->
+            </div><!-- /.container-fluid -->
+        </div>
+        
+        <div class="jumbotron">
+            <div class="container">
+                <h1>HARcURL</h1>
+                <p>
+                    The <strong>H</strong>TTP <strong>ar</strong>chiving (HAR) file transfer tool.
+                </p>
+            </div>
+        </div>
+            
+        <div class="container" id="welcome">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <h2 class="panel-title">Welcome</h2>
+                </div>
+                <div class="panel-body">
+                    <p>
+                        Welcome to the <samp>harcurl</samp> homepage.
+                    </p>
+                    <p>
+                      In order to understand what <strong><samp>harcurl</samp></strong> is, there are some prerequisites you should know:
+                    </p>
+                    <ul>
+                      <li><a href="http://en.wikipedia.org/wiki/Hypertext_Transfer_Protocol">HTTP</a> is the way the <a href="http://en.wikipedia.org/wiki/World_Wide_Web">Web</a> works.</li>
+                      <li><a href="http://www.softwareishard.com/blog/har-12-spec/">HAR-1.2</a> is a specification of a JSON-based format for HTTP archives.</li>
+                      <li><a href="http://json.org/">JSON</a> is a subset of JavaScript language syntax used for simple data exchange.</li>
+                      <li><a href="http://www.digip.org/jansson/"><samp>jansson</samp></a> is a library for reading and writing JSON data.</li>
+                      <li><a href="http://curl.haxx.se/libcurl/"><samp>libcurl</samp></a> is a multiprotocol file transfer library (including HTTP).</li>
+                      <li><a href="http://curl.haxx.se/"><samp>curl</samp></a> is a command-line tool that uses <samp>libcurl</samp>.</li>
+                      <li><a href="https://developer.gnome.org/glib/"><samp>glib</samp></a> is a library that provides the core application building blocks for <a href="http://www.gnome.org/">GNOME</a>.</li>
+                      <li>You don't need to know all of these, just HTTP and JSON should be enough.</li>
+                    </ul>
+                    <p>
+                      All of these are used together in <samp>harcurl</samp> to make the tool easier to use. There are several goals of the <samp>harcurl</samp> project:
+                    </p>
+                    <ol>
+                      <li>To evangelize the <strong>HAR</strong> format.</li>
+                      <li>To make <strong>HAR</strong> more active than just an archival format (which IMHO is as passive as it gets).</li>
+                      <li>To make <strong>HTTP</strong> transfers easier to understand (JSON helps by being able to see complex structures).</li>
+                      <li>To make <strong><samp>curl</samp></strong> and <strong><samp>libcurl</samp></strong> easier to use.
+                      <p>For example, instead of typing all of the arguments on the command-line, as some people do, you can capture a HAR request and HAR response with Chrome or Firefox and copy-and-paste the request to input into <samp>harcurl</samp>, and since it's the same format you don't have to edit much (except perhaps the Date header).
+                      </p>
+                      </li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <div class="container" id="getting-started">
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h2 class="panel-title">Getting Started</h2>
+                </div>
+                <div class="panel-body">
+                    <p>
+                        The only way to get <samp>harcurl</samp> right now is to build it from source.
+                        The source code is available from <a href="https://github.com/andydude/harcurl">GitHub</a> or the link above.
+                    </p>
+                    <pre>git clone https://github.com/andydude/harcurl.git</pre>
+                    <p>
+                        Make sure you have <strong><samp>libcurl</samp>, <samp>jansson</samp>, <samp>glib</samp>, and <samp>zlib</samp></strong> installed, then (in the <samp>harcurl</samp> directory) run
+                    </p>
+                    <pre>./autogen.sh &amp;&amp; ./configure &amp;&amp; make &amp;&amp; sudo make install</pre>
+                    <p>
+                        There are some examples in the <samp>tests</samp> directory to get you started.
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="container" id="usage">
+            <div class="panel panel-info">
+                <div class="panel-heading">
+                    <h2 class="panel-title">Usage</h2>
+                </div>
+                <div class="panel-body">
+                  <p>
+                    The <samp>harcurl</samp> tool accepts requests on <samp>stdin</samp>, and prints responses to <samp>stdout</samp>.
+                    The format of the request and response are both specified in the <a href="http://www.softwareishard.com/blog/har-12-spec/">HAR-1.2 specification</a>.
+                    Obviously, almost every property is <em>optional</em> on input, even though the HAR spec says it is required, since one of the jobs of <samp>harcurl</samp>
+                    is to fill in the rest of the data from the response. The only 2 properties that are <em>required</em> are <samp>method</samp> and <samp>url</samp>.
+                  </p>
+                  <p>
+                    The recommended usage is to build a JSON file either by hand, or by generating one with your favorite programming language, then feed that to <samp>harcurl</samp> on <samp>stdin</samp>.
+                  </p>
+                  <pre>echo '
+{
+  "request" {
+    "method": "GET",
+    "url": "http://httpbin.org/get"
+  }
+}' | harcurl
+</pre>
+                  <p>
+                    The simplest way to use <samp>harcurl</samp> is to call it with the shell command:
+                  </p>
+                  <pre>harcurl &lt; req.json &gt; resp.json</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="container" id="advanced-usage">
+            <div class="panel panel-primary">
+                <div class="panel-heading">
+                    <h2 class="panel-title">Advanced Usage</h2>
+                </div>
+                <div class="panel-body">
+                  <p>
+                    There are some differences between HAR-1.2 and the input format to <samp>harcurl</samp>. For reference, we can call this new format "HAR-1.3-alpha" or something.
+                  </p>
+                  <p>
+                    One major difference is that almost everything is optional on input, because most of the fields are filled in by <samp>harcurl</samp>. There are also
+                    some properties that are NOT specified by HAR-1.2, but are meaningful to <samp>harcurl</samp>. For example:
+                  </p>
+                  <ul>
+                    <li><samp>entry.request.headerText</samp> (output if the <code>-v</code> option is given)</li>
+                    <li><samp>entry.response.headerText</samp> (output if the <code>-v</code> option is given)</li>
+                    <li><samp>entry.request.requestLine</samp> (output if the <code>-v</code> option is given)</li>
+                    <li><samp>entry.response.statusLine</samp> (output if the <code>-v</code> option is given)</li>
+                    <li><samp>entry.request.postData.text</samp> (input to send as raw data, instead of form parameters)</li>
+                    <li><samp>entry.request.postData.params</samp> (input to send as form parameters, instead of raw data)</li>
+                    <li><samp>entry.request.postData.params.headers</samp> (input for headers to attach to a specific form datum, not the request headers) -- not in HAR-1.2</li>
+                  </ul>
+                </div>
+            </div>
+        </div>
+        
+        <script src="static/js/vendor/modernizr-2.6.2.min.js"></script>
+        <script src="static/js/vendor/jquery-1.10.2.min.js"></script>
+        <script src="static/js/vendor/bootstrap.min.js"></script>
+        <script src="static/js/main.js"></script>
+    </body>
+</html>
