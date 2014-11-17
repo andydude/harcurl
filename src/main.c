@@ -49,6 +49,69 @@ typedef enum _HarStatusCode {
   HAR_ERROR_LAST,             /* 138 */
 } HarStatusCode;
 
+int
+har_curl_formadd_strerror(int errnum, char * strerrbuf, size_t buflen)
+{
+  switch (errnum) {
+  case CURL_FORMADD_MEMORY:
+    strncpy(strerrbuf, "memory", buflen);
+    break;
+  case CURL_FORMADD_OPTION_TWICE:
+    strncpy(strerrbuf, "option twice", buflen);
+    break;
+  case CURL_FORMADD_NULL:
+    strncpy(strerrbuf, "null", buflen);
+    break;
+  case CURL_FORMADD_UNKNOWN_OPTION:
+    strncpy(strerrbuf, "unknown option", buflen);
+    break;
+  case CURL_FORMADD_INCOMPLETE:
+    strncpy(strerrbuf, "incomplete", buflen);
+    break;
+  case CURL_FORMADD_ILLEGAL_ARRAY:
+    strncpy(strerrbuf, "illegal array", buflen);
+    break;
+  case CURL_FORMADD_DISABLED:
+    strncpy(strerrbuf, "disabled", buflen);
+    break;
+  }
+
+  return 0;
+}
+
+int
+har_zlib_strerror(int errnum, char * strerrbuf, size_t buflen)
+{
+  switch (errnum) {
+  case Z_STREAM_END:
+    strncpy(strerrbuf, "stream end", buflen);
+    break;
+  case Z_NEED_DICT:
+    strncpy(strerrbuf, "need dict", buflen);
+    break;
+  case Z_ERRNO:
+    strncpy(strerrbuf, "error number", buflen);
+    break;
+  case Z_STREAM_ERROR:
+    strncpy(strerrbuf, "stream error", buflen);
+    break;
+  case Z_DATA_ERROR:
+    strncpy(strerrbuf, "data error", buflen);
+    break;
+  case Z_MEM_ERROR:
+    strncpy(strerrbuf, "memory error", buflen);
+    break;
+  case Z_BUF_ERROR:
+    strncpy(strerrbuf, "buf error", buflen);
+    break;
+  default:
+    strncpy(strerrbuf, "unknown error", buflen);
+    break;
+  }
+
+  return 0;
+}
+
 struct curl_slist *
 har_headers_to_curl_slist(json_t * headers)
 {
@@ -248,30 +311,9 @@ har_request_postdata_to_curl_httppost(json_t * req)
                           CURLFORM_END);
     
     if (status) {
-      fprintf(stderr, "curl_formadd gave us %d\n", status);
-      switch (status) {
-      case CURL_FORMADD_MEMORY:
-        fprintf(stderr, "curl_formadd gave us memory\n");
-        break;
-      case CURL_FORMADD_OPTION_TWICE:
-        fprintf(stderr, "curl_formadd gave us option twice\n");
-        break;
-      case CURL_FORMADD_NULL:
-        fprintf(stderr, "curl_formadd gave us null\n");
-        break;
-      case CURL_FORMADD_UNKNOWN_OPTION:
-        fprintf(stderr, "curl_formadd gave us unknown option\n");
-        break;
-      case CURL_FORMADD_INCOMPLETE:
-        fprintf(stderr, "curl_formadd gave us incomplete\n");
-        break;
-      case CURL_FORMADD_ILLEGAL_ARRAY:
-        fprintf(stderr, "curl_formadd gave us illegal array\n");
-        break;
-      case CURL_FORMADD_DISABLED:
-        fprintf(stderr, "curl_formadd gave us disabled\n");
-        break;
-      }
+      char buf[1024];
+      har_curl_formadd_strerror(status, buf, sizeof(buf));
+      fprintf(stderr, "curl_formadd gave us %d %s\n", status, buf);
     }
   }
 
@@ -369,9 +411,9 @@ har_window_bits(const char * content_encoding)
   /*
    * This is the super secret code for zlib
    *
-   * windowBits = -MAX_WBITS      // means use deflate
+   * windowBits = -MAX_WBITS      // means use deflate w/o zlib
    * windowBits = MAX_WBITS | 16  // means use gzip
-   * windowBits = MAX_WBITS       // means use zlib
+   * windowBits = MAX_WBITS       // means use deflate with zlib wrapper
    *
    * and for some reason it is documented nowhere,
    * and yet understood by everyone...
@@ -381,21 +423,22 @@ har_window_bits(const char * content_encoding)
 
   if (content_encoding == NULL) {
     return -1; // error
-  } else if (!g_ascii_strcasecmp(content_encoding, "deflate")) {
-    return -MAX_WBITS;
   } else if (!g_ascii_strcasecmp(content_encoding, "gzip")) {
     return (MAX_WBITS | 16);
-  } else if (!g_ascii_strcasecmp(content_encoding, "zlib")) {
-    return MAX_WBITS;
-  } else if (!g_ascii_strcasecmp(content_encoding, "bzip2")) {
-    return -1; // not supported
-  } else if (!g_ascii_strcasecmp(content_encoding, "sdch")) {
-    return -1; // not supported
-  } else if (!g_ascii_strcasecmp(content_encoding, "lzma")) {
-    return -1; // not supported
-  } else if (!g_ascii_strcasecmp(content_encoding, "xz")) {
-    return -1; // not supported
+  } else if (!g_ascii_strcasecmp(content_encoding, "deflate")) { /* wrapped in zlib */
+    return (MAX_WBITS);
+  } else if (!g_ascii_strcasecmp(content_encoding, "deflate-w-o-zlib")) {
+    return (-MAX_WBITS);
   }
+  //} else if (!g_ascii_strcasecmp(content_encoding, "bzip2")) {
+  //  return -1; // not supported
+  //} else if (!g_ascii_strcasecmp(content_encoding, "sdch")) {
+  //  return -1; // not supported
+  //} else if (!g_ascii_strcasecmp(content_encoding, "lzma")) {
+  //  return -1; // not supported
+  //} else if (!g_ascii_strcasecmp(content_encoding, "xz")) {
+  //  return -1; // not supported
+  //}
   
   return 0;
 }
@@ -418,7 +461,7 @@ har_uncompress(gpointer dest_data, gsize * dest_len,
     return Z_DATA_ERROR;
   }
   
-  ret = inflateInit2(&stream, MAX_WBITS | 16);
+  ret = inflateInit2(&stream, windowBits);
   if (ret != Z_OK) {
     return ret;
   }
@@ -430,6 +473,7 @@ har_uncompress(gpointer dest_data, gsize * dest_len,
   }
 
   *dest_len = stream.total_out;
+  fprintf(stderr, "avail_out: %d (should be zero)\n", stream.avail_out);
   
   return ret == Z_STREAM_END ? Z_OK : ret;
 }
@@ -439,40 +483,18 @@ har_bytes_uncompress(const GBytes * src, int windowBits)
 {
   gsize src_len;
   gconstpointer src_data = g_bytes_get_data((GBytes *)src, &src_len);
+  fprintf(stderr, "windowBits = %d\n", windowBits);
   fprintf(stderr, "src_len = %lu\n", src_len);
-  gsize dest_len = ((size_t)(((float)(src_len)) * 1.5f)) + 24;
+  gsize dest_len = ((size_t)(((float)(src_len)) * 2.0f)) + 24;
   fprintf(stderr, "dest_len = %lu\n", dest_len);
   gpointer dest_data = g_malloc(dest_len);
   int status;
   
   if ((status = har_uncompress(dest_data, &dest_len, src_data, src_len, windowBits)) != Z_OK) {
-    fprintf(stderr, "there was an error with zlib: %d\n", status);
-    switch (status) {
-    case Z_STREAM_END:
-      fprintf(stderr, "zlib gave us stream end\n");
-      break;
-    case Z_NEED_DICT:
-      fprintf(stderr, "zlib gave us need dict\n");
-      break;
-    case Z_ERRNO:
-      fprintf(stderr, "zlib gave us error number\n");
-      break;
-    case Z_STREAM_ERROR:
-      fprintf(stderr, "zlib gave us stream error\n");
-      break;
-    case Z_DATA_ERROR:
-      fprintf(stderr, "zlib gave us data error\n");
-      break;
-    case Z_MEM_ERROR:
-      fprintf(stderr, "zlib gave us mem error\n");
-      break;
-    case Z_BUF_ERROR:
-      fprintf(stderr, "zlib gave us buf error\n");
-      break;
-    default:
-      fprintf(stderr, "zlib gave us unknown error\n");
-      break;
-    }
+    char buf[1024];
+    har_zlib_strerror(status, buf, sizeof(buf));
+    fprintf(stderr, "there was an error with zlib: %d %s\n", status, buf);
+    return (GBytes *)src;
   }
   
   return g_bytes_new(dest_data, dest_len);
@@ -484,13 +506,13 @@ har_byte_array_uncompress(GByteArray * src, int windowBits)
   return g_bytes_unref_to_array(har_bytes_uncompress(g_byte_array_free_to_bytes(src), windowBits));
 }
 
-const char *
-har_uncompress_gzip(const char * data, size_t size, size_t * result_size)
-{
-  const char * result = g_malloc0(*result_size);
-  uncompress((Bytef *)result, result_size, (const Bytef *)data, size);
-  return result;
-}
+//const char *
+//har_uncompress_gzip(const char * data, size_t size, size_t * result_size)
+//{
+//  const char * result = g_malloc0(*result_size);
+//  uncompress((Bytef *)result, result_size, (const Bytef *)data, size);
+//  return result;
+//}
 
 void
 har_response_content_from_byte_array(json_t * resp, GByteArray * bytes)
