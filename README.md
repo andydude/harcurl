@@ -10,7 +10,7 @@ Introduction
 The `curl` tool has many options, but it can be difficult to use. HAR is a great format
 for debugging and logging, but it's very static, and just sits there. This is where
 `harcurl` comes in. To make a request, simply fill out a HAR `entry` with the
-`request` fields you are expecting to send, and `harcurl` will:
+`request` fields you are sending, and `harcurl` will:
 
  * read the JSON object from `stdin`
  * convert it to `libcurl` options
@@ -27,10 +27,10 @@ understand, inspect, and use: CURL, HAR, and HTTP.
 Dependancies
 ------------
 
-* `libcurl` for obvious reasons (all HTTP logic is handled by it)
-* `glib-2.0` for byte-array utils
-* `jansson` for JSON parsing, reading and writing
-* `zlib` for GZIP compression utils
+* `libcurl` for obvious reasons (all HTTP logic is handled by it).
+* `jansson` for JSON parsing, reading and writing.
+* `glib` for byte-array utils, utf8 validation, etc.
+* `zlib` for GZIP compression utils.
 
 
 Examples
