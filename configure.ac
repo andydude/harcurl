@@ -4,26 +4,25 @@ m4_define([get_minor_version], [m4_esyscmd([echo $1 | cut -d. -f2])])
 m4_define([get_micro_version], [m4_esyscmd([echo $1 | cut -d. -f3])])
 AC_PREREQ(2.69)
 
-AC_INIT([harcurl], [harcurl_version])
-AC_CONFIG_AUX_DIR([config.aux])
-AC_CONFIG_MACRO_DIR([aclocal.d])
+AC_INIT([harcurl], [harcurl_version],
+        [and_j_rob@yahoo.com], [harcurl],
+        [http://andydude.github.io/harcurl])
+
+AC_CONFIG_AUX_DIR([autom4te.cache])
+AC_CONFIG_MACRO_DIR([autom4te.cache])
 AC_CONFIG_SRCDIR([src])
 AC_CONFIG_HEADER([config.h])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign -Wno-portability])
 
 # Checks for programs
-AC_PROG_CC
 AC_PROG_INSTALL
+AC_PROG_CC
 AC_PROG_CC_STDC
+AM_PROG_CC_C_O
 AM_PROG_AR
 AM_SILENT_RULES([yes])
+PKG_PROG_PKG_CONFIG
 LT_INIT
-
-# Compiler flags
-HAR_CFLAGS="$GOBJECT_CFLAGS"
-HAR_LIBS="$GOBJECT_LIBS"
-AC_SUBST(HAR_CFLAGS)
-AC_SUBST(HAR_LIBS)
 
 # Versioning
 HARCURL_MAJOR_VERSION=get_major_version(harcurl_version)

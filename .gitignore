@@ -27,3 +27,17 @@
 *.i*86
 *.x86_64
 *.hex
+
+# Autotools
+aclocal.m4
+autom4te.cache/
+config.h
+config.log
+config.status
+configure
+libtool
+Makefile
+Makefile.in
+src/Makefile
+src/Makefile.in
+stamp-h1
