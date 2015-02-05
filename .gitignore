@@ -40,4 +40,5 @@ Makefile
 Makefile.in
 src/Makefile
 src/Makefile.in
+src/.deps/
 stamp-h1

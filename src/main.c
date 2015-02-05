@@ -33,7 +33,7 @@ gboolean global_verbose = FALSE;
  * expansions, if libcurl wants to do so.
  */
 typedef enum _HarStatusCode {
-  HAR_OK = 0,
+  HAR_OK = CURLE_OK,
   
   HAR_ERROR_UNKNOWN = 0x80,   /* 128 */
   HAR_ERROR_NO_REQUEST,       /* 129 */
@@ -174,28 +174,36 @@ har_headers_from_text(json_t * headers, const char * s, size_t s_len)
 
 int har_strerror(int status, char *strerrbuf, size_t buflen)
 {
+  const char * err;
   switch (status) {
   case 0:
-    strncpy("OK", strerrbuf, buflen);
+    strncpy(strerrbuf, "OK", buflen);
     break;
   case HAR_ERROR_NO_REQUEST:
-    strncpy("The request is missing", strerrbuf, buflen);
+    strncpy(strerrbuf, "The request is missing", buflen);
     break;
   case HAR_ERROR_NO_RESPONSE:
-    strncpy("The response is missing", strerrbuf, buflen);
+    strncpy(strerrbuf, "The response is missing", buflen);
     break;
   case HAR_ERROR_NO_METHOD:
-    strncpy("The method is missing. If you really want libcurl to automatically choose the method for you, then set the method to \"AUTO\"", strerrbuf, buflen);
+    strncpy(strerrbuf, "The method is missing. If you really want libcurl to automatically choose the method for you, then set the method to \"AUTO\"", buflen);
     break;
   case HAR_ERROR_NO_URL:
-    strncpy("The url property is missing, or was impossible to reconstruct with the information given.", strerrbuf, buflen);
+    strncpy(strerrbuf, "The url property is missing, or was impossible to reconstruct with the information given.", buflen);
     break;
   case HAR_ERROR_TEXT_AND_PARAMS:
-    strncpy("Both text and params were given in the request.postData property. Please use one or the other, but not both.", strerrbuf, buflen);
+    strncpy(strerrbuf, "Both text and params were given in the request.postData property. Please use one or the other, but not both.", buflen);
     break;
   default:
-    strncpy("unknown error", strerrbuf, buflen);
-    return -1;
+    {
+      err = curl_easy_strerror(status);
+      if (err != NULL) {
+        strncpy(strerrbuf, err, buflen);
+      } else {
+        strncpy(strerrbuf, "unknown error", buflen);
+      }
+      return -1;
+    }
   }
 
   return 0;
@@ -595,12 +603,17 @@ har_debug_callback(CURL * easy,
   case CURLINFO_HEADER_IN:
     //fprintf(stderr, "har_debug_callback header_in = %s of %d\n", data, response_header_index);
     resp = json_object_get(entry, "response");
-    if (size >= 5 && data[4] == '/' && response_header_index == 0 && global_verbose) {
+    if (size >= 5 && data[4] == '/' && response_header_index == 0) {
       char * s = g_malloc0(size);
       const char * end = g_strstr_len(data, size, "\r\n");
       strncpy(s, data, (end - data));
       s[(end - data)] = '\0';
-      json_object_set_new(resp, "statusLine", json_string(g_strdup(s)));
+      if (global_verbose) {
+        json_object_set_new(resp, "statusLine", json_string(g_strdup(s)));
+      }
+      char ** ss = g_strsplit(s, " ", 3);
+      json_object_set_new(resp, "statusText", json_string(g_strdup(ss[2])));
+      g_free(s);
     }
     response_header_index += 1;
     break;
@@ -940,6 +953,10 @@ main(int argc, char *argv[])
   json_error_t parse_error;
   GError * option_error;
   GOptionContext * options;
+  GTimeVal started;
+  GTimeVal ended;
+  g_get_current_time(&started);
+  char error[255];
 
   /* temp vars */
   GByteArray * harbodyin = g_byte_array_new();
@@ -994,7 +1011,8 @@ main(int argc, char *argv[])
   /* transform */
   status = har_entry_to_curl_easy_setopt(entry, easy, harbodyin, harheadout, harbodyout);
   if (status != HAR_OK) {
-    fprintf(stderr, "unable to transform har_entry object to curl_easy handle\n");
+    har_strerror(status, error, sizeof(error));
+    fprintf(stderr, "unable to transform har_entry object to curl_easy handle\n%s\n", error);
     return status;
   }
 
@@ -1002,13 +1020,15 @@ main(int argc, char *argv[])
   //fprintf(stderr, "perform\n");
   ret = curl_easy_perform(easy);
   if (ret != CURLE_OK) {
-    fprintf(stderr, "something happend during perform of the curl_easy handle\n");
+    har_strerror(ret, error, sizeof(error));
+    fprintf(stderr, "something happend during perform of the curl_easy handle\n%s\n", error);
   }
   
   /* transform */
   status = har_entry_from_curl_easy_getinfo(entry, easy, harheadout, harbodyout);
   if (status != HAR_OK) {
-    fprintf(stderr, "unable to transform curl_easy handle to har_entry object\n");
+    har_strerror(status, error, sizeof(error));
+    fprintf(stderr, "unable to transform curl_easy handle to har_entry object\n%s\n", error);
     return status;
   }
 
@@ -1017,6 +1037,11 @@ main(int argc, char *argv[])
   easy = NULL;
 
   /* dump json */
+  g_get_current_time(&ended);
+  if (global_verbose)
+    json_object_set_new(entry, "stoppedDateTime", json_string(g_strdup(g_time_val_to_iso8601 (&ended))));
+  json_object_set_new(entry, "startedDateTime", json_string(g_strdup(g_time_val_to_iso8601 (&started))));
+  json_object_set_new(entry, "time", json_real((1.0e3)*(double)(ended.tv_sec - started.tv_sec) + (1.0e-3)*(double)(ended.tv_usec - started.tv_usec)));
   flags = JSON_SORT_KEYS | JSON_INDENT(2);
   status = json_dumpf(entry, stdout, flags);
   if (status) {
