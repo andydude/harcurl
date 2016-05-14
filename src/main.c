@@ -491,10 +491,10 @@ har_bytes_uncompress(const GBytes * src, int windowBits)
 {
   gsize src_len;
   gconstpointer src_data = g_bytes_get_data((GBytes *)src, &src_len);
-  fprintf(stderr, "windowBits = %d\n", windowBits);
-  fprintf(stderr, "src_len = %lu\n", src_len);
+  //fprintf(stderr, "windowBits = %d\n", windowBits);
+  //fprintf(stderr, "src_len = %lu\n", src_len);
   gsize dest_len = ((size_t)(((float)(src_len)) * 2.0f)) + 24;
-  fprintf(stderr, "dest_len = %lu\n", dest_len);
+  //fprintf(stderr, "dest_len = %lu\n", dest_len);
   gpointer dest_data = g_malloc(dest_len);
   int status;
   
@@ -978,6 +978,7 @@ main(int argc, char *argv[])
   /* load json */
   flags = 0;
   entry = json_loadf(stdin, flags, &parse_error);
+  //entry = json_loads("{\"request\": {\"url\": \"https://httpbin.org/ip\"}}", flags, &parse_error);
   if (!entry) {
     fprintf(stderr, "no JSON could be decoded on standard input\n");
     return HAR_ERROR_WITH_JSON;
@@ -1011,8 +1012,9 @@ main(int argc, char *argv[])
   /* transform */
   status = har_entry_to_curl_easy_setopt(entry, easy, harbodyin, harheadout, harbodyout);
   if (status != HAR_OK) {
+    char error[1024];
     har_strerror(status, error, sizeof(error));
-    fprintf(stderr, "unable to transform har_entry object to curl_easy handle\n%s\n", error);
+    fprintf(stderr, "unable to transform har_entry object to curl_easy handle: %s\n", error);
     return status;
   }
 
@@ -1022,6 +1024,8 @@ main(int argc, char *argv[])
   if (ret != CURLE_OK) {
     har_strerror(ret, error, sizeof(error));
     fprintf(stderr, "something happend during perform of the curl_easy handle\n%s\n", error);
+    //const char *s = curl_easy_strerror(ret);
+    //fprintf(stderr, "something happend during perform of the curl_easy handle: %s\n", s);
   }
   
   /* transform */
@@ -1029,6 +1033,8 @@ main(int argc, char *argv[])
   if (status != HAR_OK) {
     har_strerror(status, error, sizeof(error));
     fprintf(stderr, "unable to transform curl_easy handle to har_entry object\n%s\n", error);
+    //har_strerror(status, buf, sizeof(buf));
+    //fprintf(stderr, "unable to transform curl_easy handle to har_entry object: %s\n", buf);
     return status;
   }
 
