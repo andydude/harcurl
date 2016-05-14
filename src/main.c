@@ -972,6 +972,7 @@ main(int argc, char *argv[])
 
   req = json_object_get(entry, "request");
   if (!req || !json_is_object(req)) {
+    fprintf(stderr, "The request is missing\n");
     return HAR_ERROR_NO_REQUEST;
   }
   part = json_object_get(req, "postData");
