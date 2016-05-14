@@ -219,12 +219,12 @@ har_request_to_curl_slist(json_t * req)
   json_array_foreach(headers, ix, header) {
     const char * name = json_string_value(json_object_get(header, "name"));
     
-    if (!g_ascii_strcasecmp(name, "content-encoding")) {
+    if (global_verbose && !g_ascii_strcasecmp(name, "content-encoding")) {
       const char * value = json_string_value(json_object_get(header, "value"));
       json_object_set_new(req, "_contentEncoding", json_string(value));
     }
 
-    if (!g_ascii_strcasecmp(name, "content-type")) {
+    if (global_verbose && !g_ascii_strcasecmp(name, "content-type")) {
       const char * value = json_string_value(json_object_get(header, "value"));
       json_object_set_new(req, "_contentType", json_string(value));
     }
@@ -248,7 +248,6 @@ har_request_postdata_to_curl_httppost(json_t * req)
   struct curl_httppost * last = NULL;
   struct curl_forms options[8];
   
-  //fprintf(stderr, "har_request_postdata_to_curl_httppost\n");
   if (!req || !json_is_object(req)) return NULL;
   postdata = json_object_get(req, "postData");
   if (!postdata || !json_is_object(postdata)) return NULL;
@@ -258,10 +257,8 @@ har_request_postdata_to_curl_httppost(json_t * req)
     json_object_set_new(req, "_contentType", part);
   }
 
-  //fprintf(stderr, "har_request_postdata_to_curl_httppost (postdata)\n");
   params = json_object_get(postdata, "params");
   if (!params || !json_is_array(params)) return NULL;
-  //fprintf(stderr, "har_request_postdata_to_curl_httppost (params)\n");
   
   json_array_foreach(params, ix, param) {
     jx = 0;
@@ -270,7 +267,6 @@ har_request_postdata_to_curl_httppost(json_t * req)
 
     part = json_object_get(param, "name");
     if (part && json_is_string(part)) {
-      //fprintf(stderr, "har_request_postdata_to_curl_httppost (name)\n");
       options[jx].option = CURLFORM_COPYNAME;
       options[jx].value = json_string_value(part);
       jx++;
@@ -278,7 +274,6 @@ har_request_postdata_to_curl_httppost(json_t * req)
 
     part = json_object_get(param, "value");
     if (part && json_is_string(part)) {
-      //fprintf(stderr, "har_request_postdata_to_curl_httppost (value)\n");
       options[jx].option = CURLFORM_COPYCONTENTS;
       options[jx].value = json_string_value(part);
       jx++;
@@ -298,7 +293,7 @@ har_request_postdata_to_curl_httppost(json_t * req)
       jx++;
     }
     
-    part = json_object_get(param, "contentType");
+    part = json_object_get(param, "_contentType");
     if (part && json_is_string(part)) {
       options[jx].option = CURLFORM_CONTENTTYPE;
       options[jx].value = json_string_value(part);
@@ -342,7 +337,6 @@ har_request_postdata_to_byte_array(json_t * req, GByteArray * bytes)
   const char * text = NULL;
   const char * type = NULL;
   
-  fprintf(stderr, "har_request_postdata_to_byte_array\n");
   if (!req || !json_is_object(req)) return 0;
   postdata = json_object_get(req, "postData");
   if (!postdata || !json_is_object(postdata)) return 0;
@@ -378,13 +372,12 @@ har_request_postdata_to_byte_array(json_t * req, GByteArray * bytes)
 void
 har_response_headers_from_byte_array(json_t * resp, GByteArray * bytes)
 {
-  //fprintf(stderr, "har_response_headers_from_byte_array\n");
   int ix;
   guint s_len = bytes->len;
   const char * s = (const char *)(bytes->data);
   json_object_set_new(resp, "headersSize", json_integer(s_len));
   if (global_verbose) {
-    json_object_set_new(resp, "headersText", json_string(s));
+    json_object_set_new(resp, "_headersText", json_string(s));
   }
   
   json_t * header;
@@ -399,12 +392,12 @@ har_response_headers_from_byte_array(json_t * resp, GByteArray * bytes)
   json_array_foreach(headers, ix, header) {
     const char * name = json_string_value(json_object_get(header, "name"));
     
-    if (!g_ascii_strcasecmp(name, "content-encoding")) {
+    if (global_verbose && !g_ascii_strcasecmp(name, "content-encoding")) {
       const char * value = json_string_value(json_object_get(header, "value"));
       json_object_set_new(resp, "_contentEncoding", json_string(value));
     }
 
-    if (!g_ascii_strcasecmp(name, "content-type")) {
+    if (global_verbose && !g_ascii_strcasecmp(name, "content-type")) {
       const char * value = json_string_value(json_object_get(header, "value"));
       json_object_set_new(resp, "_contentType", json_string(value));
     }
@@ -435,7 +428,7 @@ har_window_bits(const char * content_encoding)
     return (MAX_WBITS | 16);
   } else if (!g_ascii_strcasecmp(content_encoding, "deflate")) { /* wrapped in zlib */
     return (MAX_WBITS);
-  } else if (!g_ascii_strcasecmp(content_encoding, "deflate-w-o-zlib")) {
+  } else if (!g_ascii_strcasecmp(content_encoding, "deflate-w-o-zlib")) { /* nonstandard */
     return (-MAX_WBITS);
   }
   //} else if (!g_ascii_strcasecmp(content_encoding, "bzip2")) {
@@ -491,10 +484,7 @@ har_bytes_uncompress(const GBytes * src, int windowBits)
 {
   gsize src_len;
   gconstpointer src_data = g_bytes_get_data((GBytes *)src, &src_len);
-  //fprintf(stderr, "windowBits = %d\n", windowBits);
-  //fprintf(stderr, "src_len = %lu\n", src_len);
   gsize dest_len = ((size_t)(((float)(src_len)) * 2.0f)) + 24;
-  //fprintf(stderr, "dest_len = %lu\n", dest_len);
   gpointer dest_data = g_malloc(dest_len);
   int status;
   
@@ -558,12 +548,10 @@ har_debug_callback(CURL * easy,
   json_t * part;
   json_t * entry = (json_t *)entryptr;
   const char * debug_key = "_debugCurlInfo";
-  //fprintf(stderr, "har_debug_callback %d\n", type);
 
   switch (type) {
     
   case CURLINFO_TEXT:
-    //fprintf(stderr, "har_debug_callback text = %s\n", data);
     if (global_verbose) {
       part = json_object_get(entry, debug_key);
       if (!part || !json_is_array(part)) {
@@ -575,7 +563,6 @@ har_debug_callback(CURL * easy,
     break;
     
   case CURLINFO_HEADER_OUT:
-    //fprintf(stderr, "har_debug_callback header_out = %s of %d\n", data, request_header_index);
     req = json_object_get(entry, "request");
     assert(req && json_is_object(req));
 
@@ -589,19 +576,18 @@ har_debug_callback(CURL * easy,
     if (global_verbose) {
       har_headers_from_text(headers, s, size);
       
-      json_object_set_new(req, "headersText", json_string(g_strdup(s)));
+      json_object_set_new(req, "_headersText", json_string(g_strdup(s)));
 
       /* save requestLine */
       const char * end = g_strstr_len(data, size, "\r\n");
       strncpy(s, data, (end - data));
       s[(end - data)] = '\0';
-      json_object_set_new(req, "requestLine", json_string(g_strdup(s)));
+      json_object_set_new(req, "_requestLine", json_string(g_strdup(s)));
     }
     request_header_index += 1;
     break;
     
   case CURLINFO_HEADER_IN:
-    //fprintf(stderr, "har_debug_callback header_in = %s of %d\n", data, response_header_index);
     resp = json_object_get(entry, "response");
     if (size >= 5 && data[4] == '/' && response_header_index == 0) {
       char * s = g_malloc0(size);
@@ -609,7 +595,7 @@ har_debug_callback(CURL * easy,
       strncpy(s, data, (end - data));
       s[(end - data)] = '\0';
       if (global_verbose) {
-        json_object_set_new(resp, "statusLine", json_string(g_strdup(s)));
+        json_object_set_new(resp, "_statusLine", json_string(g_strdup(s)));
       }
       char ** ss = g_strsplit(s, " ", 3);
       json_object_set_new(resp, "statusText", json_string(g_strdup(ss[2])));
@@ -619,7 +605,6 @@ har_debug_callback(CURL * easy,
     break;
     
   case CURLINFO_DATA_OUT:
-    //fprintf(stderr, "har_debug_callback data_out # %lu\n", (uintptr_t)size);
     req = json_object_get(entry, "request");
     if (!req || !json_is_object(req)) return 0;
     part = json_object_get(req, "postData");
@@ -627,11 +612,12 @@ har_debug_callback(CURL * easy,
 
     json_object_set_new(part, "text", json_string(g_strdup(data)));
     json_object_set_new(req, "bodySize", json_integer(size));
-    if (global_verbose) json_object_set_new(part, "size", json_integer(size));
+    if (global_verbose) {
+      json_object_set_new(part, "size", json_integer(size));
+    }
     break;
     
   case CURLINFO_DATA_IN:
-    //fprintf(stderr, "har_debug_callback data_in # %lu\n", (uintptr_t)size);
     resp = json_object_get(entry, "response");
     if (!resp || !json_is_object(resp)) return 0;
     part = json_object_get(resp, "content");
@@ -665,7 +651,6 @@ har_read_callback(void * ptr,
 {
   size_t ptrlen = size*nitems;
   GByteArray * bytes = (GByteArray *)bytesptr;
-  //fprintf(stderr, "har_read_callback %lu\n", (uintptr_t)ptrlen);
   if (ptrlen > bytes->len)
     ptrlen = bytes->len;
   memcpy(ptr, bytes->data, ptrlen);
@@ -683,7 +668,6 @@ har_write_callback(const void * ptr,
 {
   size_t ptrlen = size*nitems;
   GByteArray * bytes = (GByteArray *)bytesptr;
-  //fprintf(stderr, "har_write_callback %lu\n", (uintptr_t)ptrlen);
   bytes = g_byte_array_append(bytes, ptr, ptrlen);
   return ptrlen;
 }
@@ -696,7 +680,6 @@ har_header_callback(const void * ptr,
 {
   size_t ptrlen = size*nitems;
   GByteArray * bytes = (GByteArray *)bytesptr;
-  //fprintf(stderr, "har_header_callback %lu\n", (uintptr_t)ptrlen);
   bytes = g_byte_array_append(bytes, ptr, ptrlen);
   return ptrlen;
 }
@@ -964,7 +947,7 @@ main(int argc, char *argv[])
   GByteArray * harbodyout = g_byte_array_new();
   GOptionEntry option_entries[] = {
     { "verbose", 'v', 0, G_OPTION_ARG_NONE, &global_verbose,
-      "A switch that is in the test group", NULL },
+      "Add nonstandard HAR properties", NULL },
     NULL
   };
   
@@ -978,7 +961,6 @@ main(int argc, char *argv[])
   /* load json */
   flags = 0;
   entry = json_loadf(stdin, flags, &parse_error);
-  //entry = json_loads("{\"request\": {\"url\": \"https://httpbin.org/ip\"}}", flags, &parse_error);
   if (!entry) {
     fprintf(stderr, "no JSON could be decoded on standard input\n");
     return HAR_ERROR_WITH_JSON;
@@ -998,8 +980,9 @@ main(int argc, char *argv[])
     part = json_object_get(req, "postData");
     json_object_set_new(req, "headersSize", json_integer(0));
     json_object_set_new(req, "bodySize", json_integer(0));
-    if (global_verbose)
+    if (global_verbose) {
       json_object_set_new(part, "size", json_integer(0));
+    }
   }
 
   /* init curl */
@@ -1019,13 +1002,10 @@ main(int argc, char *argv[])
   }
 
   /* perform */
-  //fprintf(stderr, "perform\n");
   ret = curl_easy_perform(easy);
   if (ret != CURLE_OK) {
     har_strerror(ret, error, sizeof(error));
     fprintf(stderr, "something happend during perform of the curl_easy handle\n%s\n", error);
-    //const char *s = curl_easy_strerror(ret);
-    //fprintf(stderr, "something happend during perform of the curl_easy handle: %s\n", s);
   }
   
   /* transform */
@@ -1033,8 +1013,6 @@ main(int argc, char *argv[])
   if (status != HAR_OK) {
     har_strerror(status, error, sizeof(error));
     fprintf(stderr, "unable to transform curl_easy handle to har_entry object\n%s\n", error);
-    //har_strerror(status, buf, sizeof(buf));
-    //fprintf(stderr, "unable to transform curl_easy handle to har_entry object: %s\n", buf);
     return status;
   }
 
@@ -1044,8 +1022,9 @@ main(int argc, char *argv[])
 
   /* dump json */
   g_get_current_time(&ended);
-  if (global_verbose)
-    json_object_set_new(entry, "stoppedDateTime", json_string(g_strdup(g_time_val_to_iso8601 (&ended))));
+  if (global_verbose) {
+    json_object_set_new(entry, "_stoppedDateTime", json_string(g_strdup(g_time_val_to_iso8601 (&ended))));
+  }
   json_object_set_new(entry, "startedDateTime", json_string(g_strdup(g_time_val_to_iso8601 (&started))));
   json_object_set_new(entry, "time", json_real((1.0e3)*(double)(ended.tv_sec - started.tv_sec) + (1.0e-3)*(double)(ended.tv_usec - started.tv_usec)));
   flags = JSON_SORT_KEYS | JSON_INDENT(2);
