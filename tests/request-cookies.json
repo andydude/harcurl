@@ -1,0 +1,11 @@
+{
+    "_harcurl_options": {
+        "_cookie_jar": "/tmp/cookies",
+        "_send_cookies": true,
+        "_store_cookies": false
+    },
+    "request": {
+        "method": "GET",
+        "url": "http://httpbin.org/get"
+    }
+}
