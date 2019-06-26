@@ -1019,6 +1019,57 @@ har_entry_from_curl_easy_getinfo(json_t * obj, CURL * easy,
     json_object_set_new(entry, "serverIPAddress", json_string(g_strdup(ip)));
   }
 
+  /* timings */
+
+  json_t * timings = json_object();
+  double time;
+  double time_previous;
+
+  curl_easy_getinfo(easy, CURLINFO_NAMELOOKUP_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "dns", json_real(time * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_CONNECT_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "connect", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_REDIRECT_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "redirect", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_APPCONNECT_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "ssl", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_PRETRANSFER_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "send", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_STARTTRANSFER_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "wait", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_TOTAL_TIME, &time);
+  if (time) {
+    json_object_set_new(entry, "time", json_real(time * 1000));
+    json_object_set_new(timings, "receive", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  json_object_set_new(entry, "timings", timings);
+
   /* finish up with write callback */
   har_response_headers_from_byte_array(resp, harheadout);
 
@@ -1146,7 +1197,7 @@ main(int argc, char *argv[])
     json_object_set_new(entry, "_stoppedDateTime", json_string(g_strdup(g_time_val_to_iso8601 (&ended))));
   }
   json_object_set_new(entry, "startedDateTime", json_string(g_strdup(g_time_val_to_iso8601 (&started))));
-  json_object_set_new(entry, "time", json_real((1.0e3)*(double)(ended.tv_sec - started.tv_sec) + (1.0e-3)*(double)(ended.tv_usec - started.tv_usec)));
+
   flags = JSON_SORT_KEYS | JSON_INDENT(2);
   status = json_dumpf(entry, stdout, flags);
   if (status) {
