@@ -911,6 +911,13 @@ har_entry_from_curl_easy_getinfo(json_t * obj, CURL * easy,
     json_object_set_new(resp, "redirectURL", json_string(g_strdup(redirect_url)));
   }
 
+  const char * ip;
+
+  curl_easy_getinfo(easy, CURLINFO_PRIMARY_IP, &ip);
+  if (ip) {
+    json_object_set_new(entry, "serverIPAddress", json_string(g_strdup(ip)));
+  }
+
   /* finish up with write callback */
   har_response_headers_from_byte_array(resp, harheadout);
 
