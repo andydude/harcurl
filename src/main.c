@@ -577,13 +577,23 @@ har_debug_callback(CURL * easy,
       har_headers_from_text(headers, s, size);
       
       json_object_set_new(req, "_headersText", json_string(g_strdup(s)));
+    }
 
+    /* requestline */
+    const char * end = g_strstr_len(data, size, "\r\n");
+    strncpy(s, data, (end - data));
+    s[(end - data)] = '\0';
+
+    if (global_verbose) {
       /* save requestLine */
-      const char * end = g_strstr_len(data, size, "\r\n");
-      strncpy(s, data, (end - data));
-      s[(end - data)] = '\0';
       json_object_set_new(req, "_requestLine", json_string(g_strdup(s)));
     }
+
+    const char * http_version = strrchr(s, ' ');
+    if (http_version) {
+      json_object_set_new(req, "httpVersion", json_string(g_strdup(http_version+1)));
+    }
+
     request_header_index += 1;
     break;
     
@@ -598,6 +608,7 @@ har_debug_callback(CURL * easy,
         json_object_set_new(resp, "_statusLine", json_string(g_strdup(s)));
       }
       char ** ss = g_strsplit(s, " ", 3);
+      json_object_set_new(resp, "httpVersion", json_string(g_strdup(ss[0])));
       json_object_set_new(resp, "statusText", json_string(g_strdup(ss[2])));
       g_free(s);
     }
