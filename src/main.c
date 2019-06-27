@@ -966,6 +966,17 @@ har_entry_to_curl_easy_setopt(json_t * obj, CURL * easy,
   curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, &har_write_callback);
 
   if (opts) {
+    /* follow redirects */
+    part = json_object_get(opts, "_follow_redirects");
+    if (!part) {
+      part = json_false();
+      json_object_set_new(opts, "_follow_redirects", part);
+    }
+
+    if (json_is_true(part)) {
+      curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION, 1);
+    }
+
     /* install cookie jar */
     json_t * cookie_jar = json_object_get(opts, "_cookie_jar");
     if (cookie_jar && json_is_string(cookie_jar)) {

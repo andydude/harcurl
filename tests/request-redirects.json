@@ -1,0 +1,9 @@
+{
+    "_harcurl_options": {
+        "_follow_redirects": true
+    },
+    "request": {
+        "method": "GET",
+        "url": "http://httpbin.org/get"
+    }
+}
