@@ -135,13 +135,14 @@ har_headers_to_curl_slist(json_t * headers)
 }
 
 void
-har_headers_from_text(json_t * headers, const char * s, size_t s_len)
+har_headers_from_text(json_t * headers, json_t * cookies, const char * s, size_t s_len)
 {
   int ix;
   gchar ** parts;
   gchar * line;
   gchar ** lines;
   json_t * header;
+  json_t * cookie;
   const char * name;
   const char * value;
   if (!s) {
@@ -169,6 +170,59 @@ har_headers_from_text(json_t * headers, const char * s, size_t s_len)
     json_object_set_new(header, "name", json_string(name));
     json_object_set_new(header, "value", json_string(value));
     json_array_append_new(headers, header);
+
+    if (!g_ascii_strcasecmp(name, "cookie")) {
+      gchar ** ss = g_strsplit(value, ";", -1);
+
+      gchar ** nv;
+      int loc = -1;
+
+      while (ss[++loc]) {
+        cookie = json_object();
+
+        nv = g_strsplit(g_strstrip(ss[loc]), "=", 2);
+
+        json_object_set_new(cookie, "name", json_string(nv[0]));
+        json_object_set_new(cookie, "value", json_string(nv[1]));
+
+        g_strfreev(nv);
+
+        json_array_append_new(cookies, cookie);
+      }
+    } else if (!g_ascii_strcasecmp(name, "set-cookie")) {
+      cookie = json_object();
+
+      gchar ** ss = g_strsplit(value, ";", -1);
+      gchar ** nv = g_strsplit(ss[0], "=", 2);
+
+      json_object_set_new(cookie, "name", json_string(g_strdup(nv[0])));
+      json_object_set_new(cookie, "value", json_string(g_strdup(nv[1])));
+
+      g_strfreev(nv);
+
+      int loc = 0;
+      while (ss[++loc]) {
+        nv = g_strsplit(g_strstrip(ss[loc]), "=", 2);
+
+        if (!g_ascii_strcasecmp(nv[0], "expires")) {
+          json_object_set_new(cookie, "expires", json_string(g_strstrip(g_strdup(nv[1]))));
+        } else if (!g_ascii_strcasecmp(nv[0], "path")) {
+          json_object_set_new(cookie, "path", json_string(g_strstrip(g_strdup(nv[1]))));
+        } else if (!g_ascii_strcasecmp(nv[0], "domain")) {
+          json_object_set_new(cookie, "domain", json_string(g_strstrip(g_strdup(nv[1]))));
+        } else if (!g_ascii_strcasecmp(nv[0], "max-age")) {
+          json_object_set_new(cookie, "max-age", json_string(g_strstrip(g_strdup(nv[1]))));
+        } else if (!g_ascii_strcasecmp(nv[0], "secure")) {
+          json_object_set_new(cookie, "secure", json_true());
+        } else if (!g_ascii_strcasecmp(nv[0], "httponly")) {
+          json_object_set_new(cookie, "httpOnly", json_true());
+        }
+
+        g_strfreev(nv);
+      }
+
+      json_array_append_new(cookies, cookie);
+    }
   }
 }
 
@@ -387,7 +441,13 @@ har_response_headers_from_byte_array(json_t * resp, GByteArray * bytes)
     headers = json_object_get(resp, "headers");
   }
 
-  har_headers_from_text(headers, s, s_len);
+  json_t * cookies = json_object_get(resp, "cookies");
+  if (!cookies || !json_is_array(headers)) {
+    json_object_set_new(resp, "cookies", json_array());
+    cookies = json_object_get(resp, "cookies");
+  }
+
+  har_headers_from_text(headers, cookies, s, s_len);
 
   json_array_foreach(headers, ix, header) {
     const char * name = json_string_value(json_object_get(header, "name"));
@@ -574,16 +634,44 @@ har_debug_callback(CURL * easy,
 
     json_object_set_new(req, "headersSize", json_integer(size));
     if (global_verbose) {
-      har_headers_from_text(headers, s, size);
+      json_t * cookie_jar = json_object_get(req, "_cookie_jar");
+      if (cookie_jar) {
+        json_t * send_cookies = json_object_get(req, "_send_cookies");
+        if (!send_cookies) {
+          json_object_set_new(req, "_send_cookies", json_true());
+        }
+        json_t * store_cookies = json_object_get(req, "_store_cookies");
+        if (!store_cookies) {
+          json_object_set_new(req, "_store_cookies", json_true());
+        }
+      }
+
+      json_t * cookies = json_object_get(req, "cookies");
+      if (!cookies || !json_is_array(cookies)) {
+        json_object_set_new(req, "cookies", json_array());
+        cookies = json_object_get(req, "cookies");
+      }
+
+      har_headers_from_text(headers, cookies, s, size);
       
       json_object_set_new(req, "_headersText", json_string(g_strdup(s)));
+    }
 
+    /* requestline */
+    const char * end = g_strstr_len(data, size, "\r\n");
+    strncpy(s, data, (end - data));
+    s[(end - data)] = '\0';
+
+    if (global_verbose) {
       /* save requestLine */
-      const char * end = g_strstr_len(data, size, "\r\n");
-      strncpy(s, data, (end - data));
-      s[(end - data)] = '\0';
       json_object_set_new(req, "_requestLine", json_string(g_strdup(s)));
     }
+
+    const char * http_version = strrchr(s, ' ');
+    if (http_version) {
+      json_object_set_new(req, "httpVersion", json_string(g_strdup(http_version+1)));
+    }
+
     request_header_index += 1;
     break;
     
@@ -598,6 +686,7 @@ har_debug_callback(CURL * easy,
         json_object_set_new(resp, "_statusLine", json_string(g_strdup(s)));
       }
       char ** ss = g_strsplit(s, " ", 3);
+      json_object_set_new(resp, "httpVersion", json_string(g_strdup(ss[0])));
       json_object_set_new(resp, "statusText", json_string(g_strdup(ss[2])));
       g_free(s);
     }
@@ -804,6 +893,7 @@ har_entry_to_curl_easy_setopt(json_t * obj, CURL * easy,
   json_t * entry = obj;
   json_t * req = json_object_get(entry, "request");
   json_t * resp = json_object_get(entry, "response");
+  json_t * opts = json_object_get(entry, "_harcurl_options");
   json_t * part;
   struct curl_httppost * formpost;
   
@@ -875,6 +965,39 @@ har_entry_to_curl_easy_setopt(json_t * obj, CURL * easy,
   curl_easy_setopt(easy, CURLOPT_WRITEDATA, harbodyout);
   curl_easy_setopt(easy, CURLOPT_WRITEFUNCTION, &har_write_callback);
 
+  if (opts) {
+    /* follow redirects */
+    part = json_object_get(opts, "_follow_redirects");
+    if (!part) {
+      part = json_false();
+      json_object_set_new(opts, "_follow_redirects", part);
+    }
+
+    if (json_is_true(part)) {
+      curl_easy_setopt(easy, CURLOPT_FOLLOWLOCATION, 1);
+    }
+
+    /* install cookie jar */
+    json_t * cookie_jar = json_object_get(opts, "_cookie_jar");
+    if (cookie_jar && json_is_string(cookie_jar)) {
+      const char * filename = json_string_value(cookie_jar);
+
+      json_t * send_cookies = json_object_get(opts, "_send_cookies");
+      if (!send_cookies || json_is_true(send_cookies)) {
+        curl_easy_setopt(easy, CURLOPT_COOKIEFILE, filename);
+      }
+
+      json_t * store_cookies = json_object_get(opts, "_store_cookies");
+      if (!store_cookies || json_is_true(send_cookies)) {
+        curl_easy_setopt(easy, CURLOPT_COOKIEJAR, filename);
+      }
+    }
+
+    if (!global_verbose) {
+      json_object_del(entry, "_harcurl_options");
+    }
+  }
+
   //json_decref(req);
   //json_decref(entry);
   return HAR_OK;
@@ -899,6 +1022,64 @@ har_entry_from_curl_easy_getinfo(json_t * obj, CURL * easy,
   if (redirect_url) {
     json_object_set_new(resp, "redirectURL", json_string(g_strdup(redirect_url)));
   }
+
+  const char * ip;
+
+  curl_easy_getinfo(easy, CURLINFO_PRIMARY_IP, &ip);
+  if (ip) {
+    json_object_set_new(entry, "serverIPAddress", json_string(g_strdup(ip)));
+  }
+
+  /* timings */
+
+  json_t * timings = json_object();
+  double time;
+  double time_previous;
+
+  curl_easy_getinfo(easy, CURLINFO_NAMELOOKUP_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "dns", json_real(time * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_CONNECT_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "connect", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_REDIRECT_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "redirect", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_APPCONNECT_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "ssl", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_PRETRANSFER_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "send", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_STARTTRANSFER_TIME, &time);
+  if (time) {
+    json_object_set_new(timings, "wait", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  curl_easy_getinfo(easy, CURLINFO_TOTAL_TIME, &time);
+  if (time) {
+    json_object_set_new(entry, "time", json_real(time * 1000));
+    json_object_set_new(timings, "receive", json_real((time - time_previous) * 1000));
+    time_previous = time;
+  }
+
+  json_object_set_new(entry, "timings", timings);
 
   /* finish up with write callback */
   har_response_headers_from_byte_array(resp, harheadout);
@@ -1027,7 +1208,7 @@ main(int argc, char *argv[])
     json_object_set_new(entry, "_stoppedDateTime", json_string(g_strdup(g_time_val_to_iso8601 (&ended))));
   }
   json_object_set_new(entry, "startedDateTime", json_string(g_strdup(g_time_val_to_iso8601 (&started))));
-  json_object_set_new(entry, "time", json_real((1.0e3)*(double)(ended.tv_sec - started.tv_sec) + (1.0e-3)*(double)(ended.tv_usec - started.tv_usec)));
+
   flags = JSON_SORT_KEYS | JSON_INDENT(2);
   status = json_dumpf(entry, stdout, flags);
   if (status) {
